@@ -2,6 +2,7 @@
 using System.Linq;
 using System.Threading;
 using System.Threading.Tasks;
+using Netco.Logging;
 using NetSuiteAccess.Configuration;
 using NetSuiteAccess.Models;
 using NetSuiteAccess.Services.Soap;
@@ -50,6 +51,11 @@ namespace NetSuiteAccess.Services.Customers
 			}
 
 			return customers.Select( c => c.ToSVCustomer() );
+		}
+
+		public System.Threading.Tasks.Task< NetSuiteCustomer > CreateCustomerAsync( NetSuiteCustomer customer, CancellationToken token, Mark mark = null )
+		{
+			return this._soapService.CreateCustomerAsync( customer, token, mark );
 		}
 	}
 }

@@ -5,7 +5,7 @@ namespace NetSuiteAccess.Models
 	public class NetSuiteCustomer
 	{
 		[ JsonProperty( "id" ) ]
-		public long Id { get; set; }
+		public string Id { get; set; }
 		[ JsonProperty( "companyName" ) ]
 		public string CompanyName { get; set; }
 		[ JsonProperty( "firstName" ) ]
@@ -16,6 +16,17 @@ namespace NetSuiteAccess.Models
 		public string Email { get; set; }
 		[ JsonProperty( "phone" ) ]
 		public string Phone { get; set; }
+		public NetSuiteAddress Address { get; set; } 
+	}
+
+	public class NetSuiteAddress
+	{
+		public string Country { get; set; }
+		public string Region { get; set; }
+		public string City { get; set; }
+		public string Address1 { get; set; }
+		public string Address2 { get; set; }
+		public string PostalCode { get; set; }
 	}
 
 	public static class CustomerExtensions
@@ -24,7 +35,7 @@ namespace NetSuiteAccess.Models
 		{
 			return new NetSuiteCustomer()
 			{
-				Id = long.Parse( customer.internalId ),
+				Id = customer.internalId,
 				CompanyName = customer.companyName,
 				FirstName = customer.firstName,
 				LastName = customer.lastName,

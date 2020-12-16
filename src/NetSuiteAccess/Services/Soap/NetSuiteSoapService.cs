@@ -381,6 +381,74 @@ namespace NetSuiteAccess.Services.Soap
 		}
 
 		/// <summary>
+		///	Creates new customer in NetSuite.
+		///	Requires Lists -> Customers role permission. Level - Full. 
+		/// </summary>
+		/// <param name="customer"></param>
+		/// <param name="mark"></param>
+		public async Task< NetSuiteCustomer > CreateCustomerAsync( NetSuiteCustomer customer, CancellationToken cancellationToken, Mark mark )
+		{
+			var newCustomerRecord = new NetSuiteSoapWS.Customer()
+			{
+				firstName = customer.FirstName,
+				lastName = customer.LastName,
+				email = customer.Email,
+				phone = customer.Phone,
+				companyName = customer.CompanyName,
+				isPerson = true,
+				isPersonSpecified = true
+			};
+
+			if ( customer.Address != null )
+			{
+				newCustomerRecord.addressbookList = new CustomerAddressbookList()
+				{
+					addressbook = new CustomerAddressbook[]
+					{
+						new CustomerAddressbook()
+						{
+							addressbookAddress = new Address()
+							{
+								country = Country._unitedStates,
+								countrySpecified = true,
+								city = customer.Address.City,
+								state = customer.Address.Region,
+								addr1 = customer.Address.Address1,
+								addr2 = customer.Address.Address2,
+								zip = customer.Address.PostalCode
+							}
+						}
+					}
+				};
+			}
+
+			var response = await this.ThrottleRequestAsync( mark, ( token ) =>
+			{
+				return this._service.addAsync( null, this._passport, null, null, null, newCustomerRecord );
+			}, newCustomerRecord.ToJson(), cancellationToken ).ConfigureAwait( false );
+
+			if ( !response.writeResponse.status.isSuccess )
+			{
+				if ( response.writeResponse.status.statusDetail[0].code == StatusDetailCodeType.UNIQUE_CUST_ID_REQD )
+				{
+					var existingCustomer = await GetCustomerByFirstAndLastName( customer.FirstName, customer.LastName, cancellationToken, mark ).ConfigureAwait( false );
+					if ( existingCustomer == null )
+						throw new NetSuiteException( string.Format( "Can't find existing customer by first name {0} and last name {1}", customer.FirstName, customer.LastName ) );
+
+					return existingCustomer.ToSVCustomer();
+				}
+
+				throw new NetSuiteException( response.writeResponse.status.statusDetail[0].message );
+			}
+
+			var newCustomerRef = response.writeResponse.baseRef as RecordRef;
+			if ( newCustomerRef != null )
+				customer.Id = newCustomerRef.internalId;
+
+			return customer;
+		}
+
+		/// <summary>
 		///	Find customer by internal id
 		/// </summary>
 		/// <param name="internalId"></param>
@@ -444,6 +512,41 @@ namespace NetSuiteAccess.Services.Soap
 						@operator = SearchStringFieldOperator.@is,
 						operatorSpecified = true,
 						searchValue = email
+					}
+				}
+			};
+
+			var response = await this.SearchRecords( customerSearch, mark, cancellationToken ).ConfigureAwait( false );
+			return response.OfType< Customer >().FirstOrDefault();
+		}
+
+		public async Task< Customer > GetCustomerByFirstAndLastName( string firstName, string lastName, CancellationToken cancellationToken, Mark mark )
+		{
+			if ( string.IsNullOrWhiteSpace( firstName ) 
+				|| string.IsNullOrWhiteSpace( lastName ) )
+				return null;
+
+			if ( cancellationToken.IsCancellationRequested )
+			{
+				var exceptionDetails = CallInfo.CreateInfo( mark: mark, additionalInfo: this.AdditionalLogInfo() );
+				throw new NetSuiteException( string.Format( "{0}. Task was cancelled", exceptionDetails ) );
+			}
+
+			var customerSearch = new CustomerSearch()
+			{
+				basic = new CustomerSearchBasic()
+				{
+					firstName = new SearchStringField()
+					{
+						@operator = SearchStringFieldOperator.@is,
+						operatorSpecified = true,
+						searchValue = firstName
+					},
+					lastName = new SearchStringField()
+					{
+						@operator = SearchStringFieldOperator.@is,
+						operatorSpecified = true,
+						searchValue = lastName
 					}
 				}
 			};
@@ -1014,10 +1117,8 @@ namespace NetSuiteAccess.Services.Soap
 		/// <param name="order">Sales order</param>
 		/// <param name="cancellationToken">Cancellation token</param>
 		/// <returns></returns>
-		public async System.Threading.Tasks.Task CreateSalesOrderAsync( NetSuiteSalesOrder order, long locationId, long customerId, CancellationToken cancellationToken )
+		public async System.Threading.Tasks.Task CreateSalesOrderAsync( NetSuiteSalesOrder order, long locationId, string customerId, CancellationToken cancellationToken, Mark mark )
 		{
-			var mark = Mark.CreateNew();
-
 			if ( cancellationToken.IsCancellationRequested )
 			{
 				var exceptionDetails = CallInfo.CreateInfo( mark: mark, additionalInfo: this.AdditionalLogInfo() );
@@ -1033,7 +1134,7 @@ namespace NetSuiteAccess.Services.Soap
 				}, 
 				entity = new RecordRef()
 				{
-					internalId = customerId.ToString()
+					internalId = customerId
 				}, 
 			};
 
@@ -1082,7 +1183,7 @@ namespace NetSuiteAccess.Services.Soap
 		/// <param name="order">Sales order</param>
 		/// <param name="cancellationToken">Cancellation token</param>
 		/// <returns></returns>
-		public async System.Threading.Tasks.Task UpdateSalesOrderAsync( NetSuiteSalesOrder order, long locationId, long customerId, CancellationToken cancellationToken )
+		public async System.Threading.Tasks.Task UpdateSalesOrderAsync( NetSuiteSalesOrder order, long locationId, string customerId, CancellationToken cancellationToken )
 		{
 			var mark = Mark.CreateNew();
 
@@ -1097,7 +1198,7 @@ namespace NetSuiteAccess.Services.Soap
 				internalId = order.Id,
 				entity = new RecordRef()
 				{
-					internalId = customerId.ToString()
+					internalId = customerId
 				},
 				location = new RecordRef()
 				{

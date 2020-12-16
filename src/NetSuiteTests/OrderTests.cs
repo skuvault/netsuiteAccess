@@ -253,6 +253,53 @@ namespace NetSuiteTests
 		}
 
 		[ Test ]
+		public async Task GivenSalesOrderMadeByNewCustomer_WhenCreateSalesOrderIsCalled_ThenCreatedSalesOrderIsExpected()
+		{
+			var docNumber = "SO_" + Guid.NewGuid().ToString();
+			var order = this.GenerateSalesOrder( docNumber );
+			order.Customer.Email = "ivan.ivanov" + GenerateRandomPrefix() + "@skuvault.com";
+			order.Customer.FirstName = "Ivan";
+			order.Customer.LastName = "Ivanov_" + GenerateRandomPrefix();
+
+			await this._ordersService.CreateSalesOrderAsync( order, _locationName, CancellationToken.None, true );
+
+			var createdOrder = await GetRecentlyModifiedSalesOrderByDocNumber( docNumber );
+			createdOrder.Should().NotBeNull();
+		}
+
+		[ Test ]
+		public async Task GivenSalesOrderMadeByNewCustomer_WhenCreateSalesOrderIsCalledWithDisabledAutomaticCustomerCreationFeature_ThenExceptionIsExpected()
+		{
+			var docNumber = "SO_" + Guid.NewGuid().ToString();
+			var order = this.GenerateSalesOrder( docNumber );
+
+			order.Customer.Email = "ivan.ivanov" + GenerateRandomPrefix() + "@skuvault.com";
+			order.Customer.FirstName = "Ivan";
+			order.Customer.LastName = "Ivanov_" + GenerateRandomPrefix();
+
+			await this._ordersService.CreateSalesOrderAsync( order, _locationName, CancellationToken.None, false );
+
+			var createdOrder = await GetRecentlyModifiedSalesOrderByDocNumber( docNumber );
+			createdOrder.Should().BeNull();
+		}
+
+		[ Test ]
+		public async Task GivenSalesOrderMadeByNewCustomerWithSameNameInNetSuiteButDifferentEmail_WhenCreateSalesOrderIsCalled_ThenCreatedSalesOrderIsExpected()
+		{
+			var docNumber = "SO_" + Guid.NewGuid().ToString();
+			var order = this.GenerateSalesOrder( docNumber );
+
+			order.Customer.Email = "ivan.ivanov" + GenerateRandomPrefix() + "@skuvault.com";
+			order.Customer.FirstName = "Ivan";
+			order.Customer.LastName = "Ivanov";
+
+			await this._ordersService.CreateSalesOrderAsync( order, _locationName, CancellationToken.None, true );
+
+			var createdOrder = await GetRecentlyModifiedSalesOrderByDocNumber( docNumber );
+			createdOrder.Should().NotBeNull();
+		}
+
+		[ Test ]
 		public async Task UpdateSalesOrder()
 		{
 			var docNumber = "SO_" + Guid.NewGuid().ToString();
@@ -312,6 +359,11 @@ namespace NetSuiteTests
 			}
 			var orders = await this._ordersService.GetSalesOrdersAsync( startDate.Value, DateTime.UtcNow, CancellationToken.None );
 			return orders.FirstOrDefault( o => o.DocNumber.Equals( docNumber ) );
+		}
+
+		private string GenerateRandomPrefix()
+		{
+			return Guid.NewGuid().ToString().Substring( 0, 5 );
 		}
 	}
 }

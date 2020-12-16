@@ -132,7 +132,7 @@ namespace NetSuiteAccess.Models
 
 			svOrder.Customer = new NetSuiteCustomer()
 			{
-				Id = int.Parse( order.entity.internalId )
+				Id = order.entity.internalId
 			};
 
 			return svOrder;

@@ -4,6 +4,8 @@ using NetSuiteAccess.Services.Customers;
 using NUnit.Framework;
 using System.Threading;
 using System.Threading.Tasks;
+using NetSuiteAccess.Models;
+using Netco.Logging;
 
 namespace NetSuiteTests
 {
@@ -59,6 +61,36 @@ namespace NetSuiteTests
 			var result = await this._customersService.GetCustomersInfoByIdsAsync( customersIds, CancellationToken.None );
 
 			result.Should().NotBeNull();
+		}
+
+		[ Test ]
+		public async Task CreateCustomerAsync()
+		{
+			var firstName = "Ivan" + new Random().Next( 1, 1000 );
+			var email = "ivan.ivanov" + Guid.NewGuid().ToString().Substring( 0, 5 ) + "@skuvault.com";
+			var newCustomer = new NetSuiteCustomer()
+			{
+				FirstName = firstName,
+				LastName = "Ivanov",
+				Email = email,
+				Phone = "1-502-694-5210",
+				CompanyName = "SkuVault",
+				Address = new NetSuiteAddress()
+				{
+					Country = "USA",
+					City = "Louisville",
+					Region = "KY",
+					Address1 = "2509 Plantside Drive",
+					PostalCode = "40299"
+				}
+			};
+
+			await this._customersService.CreateCustomerAsync( newCustomer, CancellationToken.None );
+
+			var nsCustomerInfo = await this._customersService.GetCustomerInfoByEmailAsync( email, CancellationToken.None );
+			nsCustomerInfo.FirstName.Should().Be( firstName );
+			nsCustomerInfo.LastName.Should().Be( newCustomer.LastName );
+			nsCustomerInfo.Email.Should().Be( email );
 		}
 	}
 }
