@@ -831,7 +831,7 @@ namespace NetSuiteAccess.Services.Soap
 		///	Get all modified sales orders
 		/// </summary>
 		/// <returns></returns>
-		public async Task< IEnumerable< NetSuiteSalesOrder > > GetModifiedSalesOrdersAsync( DateTime startDateUtc, DateTime endDateUtc, CancellationToken cancellationToken )
+		public async Task< IEnumerable< NetSuiteSalesOrder > > GetModifiedSalesOrdersAsync( DateTime startDateUtc, DateTime endDateUtc, CancellationToken cancellationToken, bool includeFulfillments = false )
 		{
 			var mark = Mark.CreateNew();
 
@@ -861,7 +861,49 @@ namespace NetSuiteAccess.Services.Soap
 			};
 
 			var response = await this.SearchRecords( searchModifiedSalesOrdersRequest, mark, cancellationToken ).ConfigureAwait( false );
-			return response.OfType< NetSuiteSoapWS.SalesOrder >().Select( p => p.ToSVSalesOrder() );
+			var salesOrders = response.OfType< NetSuiteSoapWS.SalesOrder >().Select( p => p.ToSVSalesOrder() ).ToList();
+
+			if ( includeFulfillments && salesOrders.Any() )
+			{
+				foreach( var salesOrder in salesOrders )
+				{
+					var salesOrderItemFulfillments = await GetSalesOrderItemFulfillments( salesOrder.Id,  mark, cancellationToken ).ConfigureAwait( false );
+					if ( salesOrderItemFulfillments != null && salesOrderItemFulfillments.Any() )
+					{
+						salesOrder.Fulfillments = salesOrderItemFulfillments.Select( f => f.ToSVSalesOrderFulfillment() ).ToList();
+					}
+				}
+			}
+				
+			return salesOrders;
+		}
+
+		private async Task< IEnumerable< NetSuiteSoapWS.ItemFulfillment > > GetSalesOrderItemFulfillments( string salesOrderInternalId, Mark mark, CancellationToken cancellationToken )
+		{
+			var searchItemFulfillmentsRequest = new TransactionSearchBasic()
+			{
+				 createdFrom = new SearchMultiSelectField()
+				 {
+					 @operator = SearchMultiSelectFieldOperator.anyOf,
+					 operatorSpecified = true,
+					 searchValue = new RecordRef[]
+					 {
+						 new RecordRef()
+						 {
+							 internalId = salesOrderInternalId
+						 }
+					 }
+				 },
+				 recordType = new SearchStringField()
+				 {
+					@operator = SearchStringFieldOperator.@is,
+					searchValue = "itemFulfillment",
+					operatorSpecified = true
+				 }
+			};
+
+			var response = await this.SearchRecords( searchItemFulfillmentsRequest, mark, cancellationToken ).ConfigureAwait( false );
+			return response.OfType< NetSuiteSoapWS.ItemFulfillment >();
 		}
 
 		private async Task< IEnumerable< Record > > SearchRecords( SearchRecord searchRecord, Mark mark, CancellationToken cancellationToken, int? pageSize = null )

@@ -41,6 +41,15 @@ namespace NetSuiteTests
 		}
 
 		[ Test ]
+		public void GetModifiedSalesOrdersWithFulfillments()
+		{
+			var salesOrders = this._ordersService.GetSalesOrdersAsync( DateTime.UtcNow.AddMonths( -1 ), DateTime.UtcNow, CancellationToken.None, true ).Result;
+			
+			salesOrders.Count().Should().BeGreaterThan( 0 );
+			salesOrders.Where( s => s.Fulfillments.Count() > 0 ).Count().Should().BeGreaterThan( 0 );
+		}
+
+		[ Test ]
 		public void GetModifiedPurchaseOrders()
 		{
 			var purchaseOrders = this._ordersService.GetPurchaseOrdersAsync( DateTime.UtcNow.AddDays( -14 ), DateTime.UtcNow, CancellationToken.None ).Result;

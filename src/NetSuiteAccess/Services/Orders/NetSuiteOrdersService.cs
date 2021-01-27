@@ -86,9 +86,9 @@ namespace NetSuiteAccess.Services.Orders
 		/// <param name="endDateUtc"></param>
 		/// <param name="token"></param>
 		/// <returns></returns>
-		public async Task< IEnumerable< NetSuiteSalesOrder > > GetSalesOrdersAsync( DateTime startDateUtc, DateTime endDateUtc, CancellationToken token )
+		public async Task< IEnumerable< NetSuiteSalesOrder > > GetSalesOrdersAsync( DateTime startDateUtc, DateTime endDateUtc, CancellationToken token, bool includeFulfillments = false )
 		{
-			var modifiedOrders = ( await _soapService.GetModifiedSalesOrdersAsync( startDateUtc, endDateUtc, token ).ConfigureAwait( false ) ).ToArray();
+			var modifiedOrders = ( await _soapService.GetModifiedSalesOrdersAsync( startDateUtc, endDateUtc, token, includeFulfillments ).ConfigureAwait( false ) ).ToArray();
 			var customers = ( await this._customersService.GetCustomersInfoByIdsAsync( modifiedOrders.Select( c => c.Customer.Id.ToString() ).Distinct().ToArray(), token ).ConfigureAwait( false ) ).ToList();
 			foreach( var order in modifiedOrders )
 			{
